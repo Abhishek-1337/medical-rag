@@ -1,5 +1,6 @@
 """Baseline Assist — FastAPI entry point."""
 import json
+import os
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -14,9 +15,11 @@ load_dotenv()
 
 app = FastAPI(title="Baseline Assist", version="1.0.0")
 
+ALLOWED_ORIGINS = (os.getenv("ALLOWED_ORIGINS") or "http://localhost:5174,http://127.0.0.1:5174").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
