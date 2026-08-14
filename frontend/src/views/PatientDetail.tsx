@@ -75,17 +75,22 @@ export function PatientDetail() {
       d.setUTCMonth(d.getUTCMonth() - Number(rangeFilter.replace('m', '')))
       cutoffIso = d.toISOString().slice(0, 10)
     }
-    const types = typeFilter === 'all' ? Object.keys(patient.biomarkers).sort() : [typeFilter]
+    const types = Object.keys(patient.biomarkers).sort()
     const out: ChartData[] = []
     for (const t of types) {
-      const readings = [...patient.biomarkers[t]]
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .filter((r) => !cutoffIso || r.date >= cutoffIso)
-      if (readings.length < 2) continue
+      const all = [...patient.biomarkers[t]].sort((a, b) => a.date.localeCompare(b.date))
+      const readings = all.filter((r) => !cutoffIso || r.date >= cutoffIso)
+      const note = readings.length === 0
+        ? 'no readings in this window'
+        : readings.length === 1
+          ? 'single reading in this window — showing full history'
+          : undefined
+      const shown = readings.length >= 2 ? readings : all
       out.push({
         title: `${t} trend — ${patient.name}`,
-        series: [{ name: t, unit: unitOf(t), points: readings.map((r) => ({ date: r.date, value: r.value })) }],
+        series: [{ name: t, unit: unitOf(t), points: shown.map((r) => ({ date: r.date, value: r.value })) }],
         thresholds: thresholdsOf(t),
+        note,
       })
     }
     return out

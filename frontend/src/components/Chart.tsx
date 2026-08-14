@@ -53,6 +53,9 @@ export function Chart({ data }: { data: ChartData }) {
   return (
     <div className="w-full">
       <p className="mb-1 px-1 font-mono text-[9.5px] uppercase tracking-[0.14em] text-hosp-muted">{data.title}</p>
+      {data.note && (
+        <p className="mb-1 px-1 font-mono text-[9.5px] text-hosp-amber">{data.note}</p>
+      )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
         {data.series.map((s) => (
           <span key={s.name} className="flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-[0.1em] text-hosp-muted">

@@ -54,6 +54,7 @@ export interface ChartData {
   title: string
   series: ChartSeries[]
   thresholds: { value: number; label: string }[]
+  note?: string
 }
 
 export interface ChatMessage {
