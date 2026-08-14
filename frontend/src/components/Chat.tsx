@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
-import { streamChat, type ChatEvent, type ChatMessage, type Source } from '../lib/api'
+import { streamChat, type ChatEvent, type ChatMessage, type Source, type ChartData } from '../lib/api'
 import { Markdown } from './Markdown'
+import { Chart } from './Chart'
 
 const SUGGESTIONS = [
   'Summarize the last 12 months',
@@ -45,6 +46,13 @@ export function Chat({ patientId, patientName }: { patientId: string; patientNam
       return next
     })
 
+  const setLastChart = (chart: ChartData) =>
+    setMessages((prev) => {
+      const next = [...prev]
+      next[next.length - 1] = { ...next[next.length - 1], chart }
+      return next
+    })
+
   async function send(text: string) {
     const question = text.trim()
     if (!question || streaming) return
@@ -62,6 +70,7 @@ export function Chat({ patientId, patientName }: { patientId: string; patientNam
         (e: ChatEvent) => {
           if (e.event === 'token') appendToken(e.data.text ?? '')
           else if (e.event === 'sources' && e.data.sources) setLastSources(e.data.sources)
+          else if (e.event === 'chart' && e.data.chart) setLastChart(e.data.chart)
           else if (e.event === 'error') setError(e.data.message ?? 'chat failed')
         },
         controller.signal,
@@ -120,6 +129,7 @@ export function Chat({ patientId, patientName }: { patientId: string; patientNam
             <div key={i} className="flex justify-start">
               <div className="max-w-[92%]">
                 <div className="card-shadow max-w-[92%] rounded-2xl rounded-bl-md border border-hosp-line bg-hosp-panel px-3.5 py-2.5 text-sm leading-relaxed text-hosp-text">
+                  {m.chart && <Chart data={m.chart} />}
                   {m.content ? (
                     <Markdown text={m.content} />
                   ) : streaming && i === messages.length - 1 ? (

@@ -63,7 +63,17 @@ async def chat_endpoint(req: ChatRequest):
     async def gen():
         try:
             async for item in chat.stream_answer(req.message, req.patientId, req.history):
-                yield _sse(item["type"], {"text": item["text"]} if item["type"] == "token" else {"sources": item["sources"]} if item["type"] == "sources" else {"message": item["message"]} if item["type"] == "error" else {})
+                t = item["type"]
+                if t == "token":
+                    yield _sse("token", {"text": item["text"]})
+                elif t == "chart":
+                    yield _sse("chart", {"chart": item["chart"]})
+                elif t == "sources":
+                    yield _sse("sources", {"sources": item["sources"]})
+                elif t == "error":
+                    yield _sse("error", {"message": item["message"]})
+                else:
+                    yield _sse("done", {})
         except Exception as e:
             yield _sse("error", {"message": str(e)})
 

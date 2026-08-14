@@ -47,11 +47,12 @@ def _resolve(patient_id: str | None) -> str | None:
     return None
 
 
-def build_context(message: str, patient_id: str | None) -> tuple[str, list[dict]]:
-    """Deterministic retrieval: returns (context_text, sources)."""
+def build_context(message: str, patient_id: str | None) -> tuple[str, list[dict], dict | None]:
+    """Deterministic retrieval: returns (context_text, sources, chart)."""
     lowered = message.lower()
     parts: list[str] = []
     sources: list[dict] = []
+    chart = None
     pid = _resolve(patient_id)
 
     if "queue" in lowered or "pending" in lowered:
@@ -68,6 +69,11 @@ def build_context(message: str, patient_id: str | None) -> tuple[str, list[dict]
             sources += src
 
     if pid and (patient := get_patient(pid)):
+        if any(w in lowered for w in ("graph", "chart", "plot", "visualize")) or (
+            "show" in lowered and "trend" in lowered
+        ):
+            biomarker = next((t for t in ("LDL", "HbA1c", "HDL") if t in message), None)
+            chart = tools.chart_facts(patient, biomarker)
         text, src = tools.patient_facts(patient)
         parts.append(text)
         sources += src
@@ -83,7 +89,7 @@ def build_context(message: str, patient_id: str | None) -> tuple[str, list[dict]
     except Exception as e:  # index or key missing — patient facts still answer
         parts.append(f"(clinical knowledge unavailable: {e})")
 
-    return "\n\n".join(parts), sources
+    return "\n\n".join(parts), sources, chart
 
 
 def _fake_reply(context: str) -> str:
@@ -97,7 +103,7 @@ def _fake_reply(context: str) -> str:
 async def stream_answer(
     message: str, patient_id: str | None, history: list[dict]
 ) -> AsyncGenerator[dict, None]:
-    context, sources = build_context(message, patient_id)
+    context, sources, chart = build_context(message, patient_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in (history or [])[-8:]]
     messages.append({"role": "system", "content": f"CONTEXT:\n{context}"})
@@ -107,6 +113,8 @@ async def stream_answer(
         for word in _fake_reply(context).split(" "):
             yield {"type": "token", "text": word + " "}
             await asyncio.sleep(0.015)
+        if chart:
+            yield {"type": "chart", "chart": chart}
         yield {"type": "sources", "sources": sources}
         yield {"type": "done"}
         return
@@ -123,5 +131,7 @@ async def stream_answer(
     except Exception as e:
         yield {"type": "error", "message": str(e)}
         return
+    if chart:
+        yield {"type": "chart", "chart": chart}
     yield {"type": "sources", "sources": sources}
     yield {"type": "done"}

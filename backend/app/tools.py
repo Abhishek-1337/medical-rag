@@ -155,6 +155,34 @@ def queue_facts() -> tuple[str, list[dict]]:
     return "\n".join(lines), sources
 
 
+def chart_facts(patient: dict, biomarker: Optional[str] = None) -> dict | None:
+    """Deterministic chart payload: real series + thresholds, no LLM in the loop."""
+    types = [biomarker] if biomarker else list(patient["biomarkers"].keys())
+    series = []
+    for t in types:
+        readings = sorted(patient.get("biomarkers", {}).get(t, []), key=lambda r: r["date"])
+        if len(readings) < 2:
+            continue
+        series.append(
+            {
+                "name": t,
+                "unit": unit_for(t),
+                "points": [{"date": r["date"], "value": r["value"]} for r in readings],
+            }
+        )
+    if not series:
+        return None
+    return {
+        "title": f"{biomarker + ' trend' if biomarker else 'Biomarker trends'} — {patient['name']} ({patient['memberId']})",
+        "series": series,
+        "thresholds": [
+            {"value": THRESHOLDS[t][0], "label": THRESHOLDS[t][1]}
+            for t in types
+            if t in THRESHOLDS
+        ],
+    }
+
+
 def compare_facts(patients: list[dict], biomarker: str) -> tuple[str, list[dict]]:
     unit = unit_for(biomarker)
     lines = [f"Comparing **{biomarker}** ({unit}):"]

@@ -39,15 +39,33 @@ export interface Source {
   source?: string
 }
 
+export interface ChartPoint {
+  date: string
+  value: number
+}
+
+export interface ChartSeries {
+  name: string
+  unit: string
+  points: ChartPoint[]
+}
+
+export interface ChartData {
+  title: string
+  series: ChartSeries[]
+  thresholds: { value: number; label: string }[]
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   sources?: Source[]
+  chart?: ChartData
 }
 
 export interface ChatEvent {
-  event: 'token' | 'sources' | 'done' | 'error'
-  data: { text?: string; sources?: Source[]; message?: string }
+  event: 'token' | 'sources' | 'chart' | 'done' | 'error'
+  data: { text?: string; sources?: Source[]; chart?: ChartData; message?: string }
 }
 
 export async function getPatients(q?: string): Promise<PatientRow[]> {

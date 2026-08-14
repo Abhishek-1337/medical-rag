@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { Reading } from '../lib/api'
 
 interface Row {
@@ -31,10 +31,19 @@ function thresholdBadge(type: string, value: number): { label: string; tone: 'am
   return null
 }
 
-export function RecordsTable({ biomarkers }: { biomarkers: Record<string, Reading[]> }) {
-  const [typeFilter, setTypeFilter] = useState<'all' | string>('all')
-  const [yearFilter, setYearFilter] = useState<'all' | string>('all')
-
+export function RecordsTable({
+  biomarkers,
+  typeFilter,
+  yearFilter,
+  onTypeFilter,
+  onYearFilter,
+}: {
+  biomarkers: Record<string, Reading[]>
+  typeFilter: string
+  yearFilter: string
+  onTypeFilter: (t: string) => void
+  onYearFilter: (y: string) => void
+}) {
   const types = useMemo(() => Object.keys(biomarkers).sort(), [biomarkers])
   const years = useMemo(() => {
     const set = new Set<string>()
@@ -69,7 +78,7 @@ export function RecordsTable({ biomarkers }: { biomarkers: Record<string, Readin
           {['all', ...types].map((t) => (
             <button
               key={t}
-              onClick={() => setTypeFilter(t)}
+              onClick={() => onTypeFilter(t)}
               className={`rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
                 typeFilter === t ? 'card-shadow bg-hosp-panel font-semibold text-hosp-blue' : 'text-hosp-muted hover:text-hosp-text'
               }`}
@@ -82,7 +91,7 @@ export function RecordsTable({ biomarkers }: { biomarkers: Record<string, Readin
           <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-hosp-dim">Year</span>
           <select
             value={yearFilter}
-            onChange={(e) => setYearFilter(e.target.value)}
+            onChange={(e) => onYearFilter(e.target.value)}
             className="rounded-full border border-hosp-line bg-hosp-panel px-3 py-1 font-mono text-[11px] text-hosp-text focus:border-hosp-blue focus:outline-none"
           >
             <option value="all">All years</option>
