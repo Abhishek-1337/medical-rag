@@ -184,7 +184,7 @@ export function PatientDetail() {
 
         <main className="flex min-h-0 flex-col">
           <div className="flex border-b border-hosp-line bg-hosp-panel px-4 pt-2">
-            <div className="flex gap-1 rounded-full bg-hosp-panel2 p-1">
+            <div className="flex gap-1 rounded-full bg-hosp-panel2 p-1 mb-2">
               {(
                 [
                   ['records', 'Vitals & records'],
