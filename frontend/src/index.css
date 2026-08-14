@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme {
+  --color-hosp-bg: #f4f7fb;
+  --color-hosp-panel: #ffffff;
+  --color-hosp-panel2: #ebf1f8;
+  --color-hosp-line: #d9e2ec;
+  --color-hosp-linesoft: #e6edf5;
+  --color-hosp-text: #21364f;
+  --color-hosp-muted: #5e7188;
+  --color-hosp-dim: #94a5b8;
+  --color-hosp-blue: #1f6fd9;
+  --color-hosp-bluedim: #1559b8;
+  --color-hosp-bluetint: rgba(31, 111, 217, 0.08);
+  --color-hosp-teal: #0e8a7c;
+  --color-hosp-tealdim: #0b6f63;
+  --color-hosp-tealtint: rgba(14, 138, 124, 0.09);
+  --color-hosp-amber: #b97b0f;
+  --color-hosp-ambertint: rgba(185, 123, 15, 0.09);
+  --color-hosp-red: #c64545;
+  --color-hosp-errbg: #fdebea;
+  --color-hosp-errtext: #a53b3b;
+
+  --font-display: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-hosp-bg);
+  color: var(--color-hosp-text);
+  font-family: var(--font-display);
+  font-size: 14.5px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(31, 111, 217, 0.18);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-hosp-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* soft clinical card shadow */
+.card-shadow {
+  box-shadow: 0 1px 2px rgba(22, 50, 79, 0.04), 0 8px 24px rgba(22, 50, 79, 0.07);
+}
+
+/* ECG pulse — the brand signature */
+.ecg {
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+  animation: ecg-scan 3.2s linear infinite;
+}
+@keyframes ecg-scan {
+  0% {
+    stroke-dashoffset: 240;
+  }
+  60% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hosp-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes hosp-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
