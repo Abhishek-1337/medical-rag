@@ -25,6 +25,29 @@
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
+/* ICU night — monitor-room dark */
+.dark {
+  --color-hosp-bg: #0a1220;
+  --color-hosp-panel: #0f1a2b;
+  --color-hosp-panel2: #0c1524;
+  --color-hosp-line: #1e2f47;
+  --color-hosp-linesoft: #17263b;
+  --color-hosp-text: #dbe7f6;
+  --color-hosp-muted: #8ba0bc;
+  --color-hosp-dim: #5c7195;
+  --color-hosp-blue: #58a6ff;
+  --color-hosp-bluedim: #3b82f6;
+  --color-hosp-bluetint: rgba(88, 166, 255, 0.12);
+  --color-hosp-teal: #2fcdb5;
+  --color-hosp-tealdim: #1fb096;
+  --color-hosp-tealtint: rgba(47, 205, 181, 0.1);
+  --color-hosp-amber: #e8a33d;
+  --color-hosp-ambertint: rgba(232, 163, 61, 0.1);
+  --color-hosp-red: #f16d6d;
+  --color-hosp-errbg: rgba(241, 109, 109, 0.1);
+  --color-hosp-errtext: #ff9d9d;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }
@@ -36,6 +59,11 @@ body {
   font-size: 14.5px;
   line-height: 1.6;
   min-height: 100vh;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.dark ::selection {
+  background: rgba(88, 166, 255, 0.22);
 }
 
 ::selection {
@@ -51,6 +79,10 @@ body {
 /* soft clinical card shadow */
 .card-shadow {
   box-shadow: 0 1px 2px rgba(22, 50, 79, 0.04), 0 8px 24px rgba(22, 50, 79, 0.07);
+}
+
+.dark .card-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(88, 166, 255, 0.04);
 }
 
 /* ECG pulse — the brand signature */

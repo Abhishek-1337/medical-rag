@@ -4,6 +4,7 @@ import { getPatient, type PatientDetail } from '../lib/api'
 import { Chat } from '../components/Chat'
 import { Brand } from '../components/Brand'
 import { RecordsTable } from '../components/RecordsTable'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 function latestByType(p: PatientDetail): { type: string; latest: number; first: number; unit: string }[] {
   return Object.entries(p.biomarkers).map(([type, readings]) => {
@@ -68,6 +69,7 @@ export function PatientDetail() {
         </button>
         <Brand tagline="chart" />
         <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-hosp-dim">· {patient.memberId}</span>
+        <ThemeToggle />
         {activeSummary && (
           <span
             className={`ml-auto rounded-full px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.12em] ${

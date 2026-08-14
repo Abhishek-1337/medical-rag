@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { getPatients, type PatientRow } from '../lib/api'
 import { Brand } from '../components/Brand'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 export function PatientsList() {
   const [rows, setRows] = useState<PatientRow[]>([])
@@ -32,9 +33,12 @@ export function PatientsList() {
       <header className="border-b border-hosp-line bg-hosp-panel">
         <div className="mx-auto flex max-w-3xl items-center gap-4 px-6 py-4">
           <Brand tagline="clinical decision support" />
-          <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-hosp-blue">
-            <span className="inline-block h-1.5 w-1.5 animate-[hosp-blink_2.2s_infinite] rounded-full bg-hosp-blue" />
-            {loading ? 'loading' : `${rows.length} patients`}
+          <span className="ml-auto flex items-center gap-2.5">
+            <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-hosp-blue">
+              <span className="inline-block h-1.5 w-1.5 animate-[hosp-blink_2.2s_infinite] rounded-full bg-hosp-blue" />
+              {loading ? 'loading' : `${rows.length} patients`}
+            </span>
+            <ThemeToggle />
           </span>
         </div>
       </header>
