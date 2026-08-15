@@ -84,6 +84,9 @@ The request path is non-blocking by design:
   file's mtime changes.
 - **Rate limiting** — `/api/chat` is capped per client IP with a sliding window
   (`CHAT_RATE_LIMIT` requests per `CHAT_RATE_WINDOW` seconds, default `10`/`60`).
+- **Input guardrails** — `history` roles are sanitized (only `user`/`assistant` survive) and
+  bounded; `patientId` format is validated; and a deny-list prompt-injection guard
+  (`guard.py`) hard-rejects suspicious messages with 400 (`BASELINE_INPUT_GUARD`).
 
 Tunables (`.env`):
 
@@ -94,6 +97,7 @@ Tunables (`.env`):
 | `CHAT_RATE_WINDOW` | `60` | sliding window size in seconds |
 | `RERANK_MODEL` | `gpt-4o-mini` | model used for the retrieval rerank pass |
 | `BASELINE_RERANK` | `true` | enable/disable the LLM rerank step |
+| `BASELINE_INPUT_GUARD` | `true` | enable/disable the prompt-injection deny-list |
 
 Known limits: the rate limiter and caches are in-memory (per-process), so they don't span
 multiple uvicorn workers — fine for one worker, but use Redis/shared state if you scale out.

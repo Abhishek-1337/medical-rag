@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sse_starlette.sse import EventSourceResponse
 
-from . import chat, data, knowledge
+from . import chat, data, guard, knowledge
 
 load_dotenv()
 
@@ -74,6 +74,7 @@ class ChatRequest(BaseModel):
 
 CHAT_RATE_LIMIT = int(os.getenv("CHAT_RATE_LIMIT", "10"))
 CHAT_RATE_WINDOW = float(os.getenv("CHAT_RATE_WINDOW", "60"))
+INPUT_GUARD_ENABLED = os.getenv("BASELINE_INPUT_GUARD", "true").lower() in ("1", "true", "yes")
 _hits: dict[str, deque] = defaultdict(deque)
 
 
@@ -114,6 +115,8 @@ def _sse(event: str, payload: dict) -> dict:
 async def chat_endpoint(req: ChatRequest, request: Request):
     if _rate_limited(request.client.host if request.client else "unknown"):
         return JSONResponse(status_code=429, content={"error": "rate limit exceeded, try again shortly"})
+    if INPUT_GUARD_ENABLED and guard.is_injection(req.message, req.history):
+        return JSONResponse(status_code=400, content={"error": "request blocked by input guard"})
     if not chat.has_llm_key() and not chat.FAKE_STREAM:
         return JSONResponse(
             status_code=503,
