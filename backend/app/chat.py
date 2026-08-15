@@ -103,7 +103,7 @@ def _fake_reply(context: str) -> str:
 async def stream_answer(
     message: str, patient_id: str | None, history: list[dict]
 ) -> AsyncGenerator[dict, None]:
-    context, sources, chart = build_context(message, patient_id)
+    context, sources, chart = await asyncio.to_thread(build_context, message, patient_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in (history or [])[-8:]]
     messages.append({"role": "system", "content": f"CONTEXT:\n{context}"})
