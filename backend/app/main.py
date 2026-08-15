@@ -1,6 +1,7 @@
 """Baseline Assist — FastAPI entry point."""
 import json
 import os
+import re
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
@@ -9,7 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sse_starlette.sse import EventSourceResponse
 
 from . import chat, data, knowledge
@@ -36,10 +37,39 @@ app.add_middleware(
 )
 
 
+ALLOWED_HISTORY_ROLES = {"user", "assistant"}
+MAX_HISTORY_MESSAGES = 20
+MAX_HISTORY_CONTENT = 2000
+_PATIENT_ID_RE = re.compile(r"^[A-Za-z0-9-]{1,64}$")
+
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     patientId: str | None = None
     history: list[dict] = Field(default_factory=list)
+
+    @field_validator("patientId")
+    @classmethod
+    def _check_patient_id(cls, v: str | None) -> str | None:
+        if v is not None and not _PATIENT_ID_RE.fullmatch(v):
+            raise ValueError("patientId must be alphanumeric with hyphens (<=64 chars)")
+        return v
+
+    @field_validator("history", mode="before")
+    @classmethod
+    def _sanitize_history(cls, v):
+        if not isinstance(v, list):
+            return []
+        clean: list[dict] = []
+        for m in v[:MAX_HISTORY_MESSAGES]:
+            if not isinstance(m, dict):
+                continue
+            role = m.get("role") if m.get("role") in ALLOWED_HISTORY_ROLES else "user"
+            content = m.get("content")
+            if not isinstance(content, str):
+                content = ""
+            clean.append({"role": role, "content": content[:MAX_HISTORY_CONTENT]})
+        return clean
 
 
 CHAT_RATE_LIMIT = int(os.getenv("CHAT_RATE_LIMIT", "10"))

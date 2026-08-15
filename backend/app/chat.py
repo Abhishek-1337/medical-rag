@@ -32,6 +32,22 @@ def has_llm_key() -> bool:
     return bool(os.getenv("OPENAI_API_KEY"))
 
 
+_ALLOWED_ROLES = {"user", "assistant"}
+
+
+def _sanitize_history(history: list[dict] | None) -> list[dict]:
+    out: list[dict] = []
+    for m in (history or [])[-8:]:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role") if m.get("role") in _ALLOWED_ROLES else "user"
+        content = m.get("content")
+        if not isinstance(content, str):
+            content = ""
+        out.append({"role": role, "content": content})
+    return out
+
+
 def _resolve(patient_id: str | None) -> str | None:
     """Accept internal id or member id (e.g. MK-1042)."""
     if not patient_id:
@@ -100,7 +116,7 @@ async def stream_answer(
 ) -> AsyncGenerator[dict, None]:
     context, sources, chart = await build_context(message, patient_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    messages += [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in (history or [])[-8:]]
+    messages += _sanitize_history(history)
     messages.append({"role": "system", "content": f"CONTEXT:\n{context}"})
     messages.append({"role": "user", "content": message})
 
