@@ -1,16 +1,23 @@
 """Knowledge base: Markdown docs → chunks → embeddings → Chroma (built at startup)."""
+import asyncio
 import os
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 
 import chromadb
 from dotenv import load_dotenv
-from openai import OpenAI
+
+from .llm import get_client
 
 load_dotenv()
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "data" / "knowledge"
 CHROMA_DIR = Path(os.getenv("CHROMA_PERSIST_DIR", "../chroma_db")).resolve()
 COLLECTION = "baseline_knowledge"
+
+_chroma_client = None
+_chroma_pool: ThreadPoolExecutor | None = None
 
 
 def _chunk(text: str, size: int = 650) -> list[str]:
@@ -38,44 +45,71 @@ def _load_chunks() -> list[tuple[str, str, str]]:
     return out
 
 
-_client: OpenAI | None = None
-
-
-def _embeddings(texts: list[str]) -> list[list[float]]:
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL") or None)
-    res = _client.embeddings.create(
+async def _embeddings(texts: list[str]) -> list[list[float]]:
+    res = await get_client().embeddings.create(
         model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"), input=texts
     )
     return [d.embedding for d in res.data]
 
 
-def build_index() -> None:
+def _get_chroma_client():
+    """Singleton client, created/used only on the dedicated chroma thread."""
+    global _chroma_client
+    if _chroma_client is None:
+        _chroma_client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+    return _chroma_client
+
+
+def _pool() -> ThreadPoolExecutor:
+    """Single-worker executor: serializes Chroma (SQLite) access on one thread."""
+    global _chroma_pool
+    if _chroma_pool is None:
+        _chroma_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="chroma")
+    return _chroma_pool
+
+
+def _run_chroma(fn, *args):
+    loop = asyncio.get_running_loop()
+    return loop.run_in_executor(_pool(), partial(fn, *args))
+
+
+def _index_exists() -> bool:
+    return _get_chroma_client().get_or_create_collection(COLLECTION).count() > 0
+
+
+def _add_sync(embeddings, ids, documents, metadatas):
+    col = _get_chroma_client().get_or_create_collection(COLLECTION)
+    col.add(ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings)
+    return len(documents)
+
+
+def _query_sync(query_embeddings, k):
+    col = _get_chroma_client().get_or_create_collection(COLLECTION)
+    return col.query(
+        query_embeddings=query_embeddings, n_results=k, include=["documents", "metadatas", "distances"]
+    )
+
+
+async def build_index() -> None:
     """Build the knowledge index once (idempotent — safe to call on every startup)."""
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    col = client.get_or_create_collection(COLLECTION)
-    if col.count() > 0:
+    if await _run_chroma(_index_exists):
         return
     chunks = _load_chunks()
-    col.add(
-        ids=[f"{stem}-{i}" for i, (_, _, stem) in enumerate(chunks)],
-        documents=[c for c, _, _ in chunks],
-        metadatas=[{"title": title, "source": stem} for _, title, stem in chunks],
-        embeddings=_embeddings([c for c, _, _ in chunks]),
+    embeddings = await _embeddings([c for c, _, _ in chunks])
+    n = await _run_chroma(
+        _add_sync,
+        embeddings,
+        [f"{stem}-{i}" for i, (_, _, stem) in enumerate(chunks)],
+        [c for c, _, _ in chunks],
+        [{"title": title, "source": stem} for _, title, stem in chunks],
     )
-    print(f"built knowledge index ({len(chunks)} chunks) at {CHROMA_DIR}")
+    print(f"built knowledge index ({n} chunks) at {CHROMA_DIR}")
 
 
-def _collection() -> chromadb.Collection:
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    return client.get_or_create_collection(COLLECTION)
-
-
-def search_knowledge(query: str, k: int = 4) -> list[dict]:
+async def search_knowledge(query: str, k: int = 4) -> list[dict]:
     """Top-k chunks for the query: [{text, title, source, score}]."""
-    col = _collection()
-    res = col.query(query_embeddings=_embeddings([query]), n_results=k, include=["documents", "metadatas", "distances"])
+    query_embeddings = await _embeddings([query])
+    res = await _run_chroma(_query_sync, query_embeddings, k)
     out = []
     for text, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
         out.append({"text": text, "title": meta["title"], "source": meta["source"], "score": round(dist, 4)})

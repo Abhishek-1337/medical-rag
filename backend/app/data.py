@@ -6,10 +6,19 @@ from typing import Optional
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 PATIENTS_PATH = DATA_DIR / "patients.json"
 
+_cache: list[dict] | None = None
+_cache_mtime: float | None = None
+
 
 def load_patients() -> list[dict]:
-    with open(PATIENTS_PATH, encoding="utf-8") as f:
-        return json.load(f)["patients"]
+    """Return patients, cached in memory; reload only if the file changed."""
+    global _cache, _cache_mtime
+    mtime = PATIENTS_PATH.stat().st_mtime
+    if _cache is None or _cache_mtime != mtime:
+        with open(PATIENTS_PATH, encoding="utf-8") as f:
+            _cache = json.load(f)["patients"]
+        _cache_mtime = mtime
+    return _cache
 
 
 def search_patients(q: Optional[str] = None) -> list[dict]:

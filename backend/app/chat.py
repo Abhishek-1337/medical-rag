@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from . import tools
 from .data import get_patient, load_patients
 from .knowledge import search_knowledge
+from .llm import get_client
 
 load_dotenv()
 
@@ -31,12 +32,6 @@ def has_llm_key() -> bool:
     return bool(os.getenv("OPENAI_API_KEY"))
 
 
-async def _async_client():
-    from openai import AsyncOpenAI
-
-    return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL") or None)
-
-
 def _resolve(patient_id: str | None) -> str | None:
     """Accept internal id or member id (e.g. MK-1042)."""
     if not patient_id:
@@ -47,7 +42,7 @@ def _resolve(patient_id: str | None) -> str | None:
     return None
 
 
-def build_context(message: str, patient_id: str | None) -> tuple[str, list[dict], dict | None]:
+async def build_context(message: str, patient_id: str | None) -> tuple[str, list[dict], dict | None]:
     """Deterministic retrieval: returns (context_text, sources, chart)."""
     lowered = message.lower()
     parts: list[str] = []
@@ -82,7 +77,7 @@ def build_context(message: str, patient_id: str | None) -> tuple[str, list[dict]
         sources += src
 
     try:
-        chunks = search_knowledge(message)
+        chunks = await search_knowledge(message)
         if chunks:
             parts.append("\n".join(f"From '{c['title']}':\n{c['text']}" for c in chunks))
             sources += [{"type": "knowledge", "label": c["title"], "source": c["source"]} for c in chunks]
@@ -103,7 +98,7 @@ def _fake_reply(context: str) -> str:
 async def stream_answer(
     message: str, patient_id: str | None, history: list[dict]
 ) -> AsyncGenerator[dict, None]:
-    context, sources, chart = await asyncio.to_thread(build_context, message, patient_id)
+    context, sources, chart = await build_context(message, patient_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in (history or [])[-8:]]
     messages.append({"role": "system", "content": f"CONTEXT:\n{context}"})
@@ -120,7 +115,7 @@ async def stream_answer(
         return
 
     try:
-        client = await _async_client()
+        client = get_client()
         stream = await client.chat.completions.create(
             model=os.getenv("CHAT_MODEL", "gpt-4o-mini"), messages=messages, stream=True
         )

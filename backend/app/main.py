@@ -1,11 +1,12 @@
 """Baseline Assist — FastAPI entry point."""
-import asyncio
 import json
 import os
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -19,7 +20,7 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if chat.has_llm_key():
-        await asyncio.to_thread(knowledge.build_index)
+        await knowledge.build_index()
     yield
 
 
@@ -39,6 +40,22 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     patientId: str | None = None
     history: list[dict] = Field(default_factory=list)
+
+
+CHAT_RATE_LIMIT = int(os.getenv("CHAT_RATE_LIMIT", "10"))
+CHAT_RATE_WINDOW = float(os.getenv("CHAT_RATE_WINDOW", "60"))
+_hits: dict[str, deque] = defaultdict(deque)
+
+
+def _rate_limited(key: str) -> bool:
+    now = time.monotonic()
+    dq = _hits[key]
+    while dq and dq[0] <= now - CHAT_RATE_WINDOW:
+        dq.popleft()
+    if len(dq) >= CHAT_RATE_LIMIT:
+        return True
+    dq.append(now)
+    return False
 
 
 @app.get("/api/health")
@@ -64,7 +81,9 @@ def _sse(event: str, payload: dict) -> dict:
 
 
 @app.post("/api/chat")
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(req: ChatRequest, request: Request):
+    if _rate_limited(request.client.host if request.client else "unknown"):
+        return JSONResponse(status_code=429, content={"error": "rate limit exceeded, try again shortly"})
     if not chat.has_llm_key() and not chat.FAKE_STREAM:
         return JSONResponse(
             status_code=503,
