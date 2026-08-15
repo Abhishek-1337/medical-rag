@@ -69,15 +69,21 @@ export interface ChatEvent {
   data: { text?: string; sources?: Source[]; chart?: ChartData; message?: string }
 }
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+
+function api(path: string): string {
+  return `${API_BASE}${path}`
+}
+
 export async function getPatients(q?: string): Promise<PatientRow[]> {
-  const url = q && q.trim() ? `/api/patients?q=${encodeURIComponent(q)}` : '/api/patients'
+  const url = q && q.trim() ? api(`/api/patients?q=${encodeURIComponent(q)}`) : api('/api/patients')
   const res = await fetch(url)
   if (!res.ok) throw new Error(`patients request failed (${res.status})`)
   return res.json()
 }
 
 export async function getPatient(id: string): Promise<PatientDetail> {
-  const res = await fetch(`/api/patients/${id}`)
+  const res = await fetch(api(`/api/patients/${id}`))
   if (!res.ok) throw new Error(`patient request failed (${res.status})`)
   return res.json()
 }
@@ -87,7 +93,7 @@ export async function streamChat(
   onEvent: (e: ChatEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const res = await fetch('/api/chat', {
+  const res = await fetch(api('/api/chat'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
