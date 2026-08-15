@@ -1,6 +1,8 @@
 """Baseline Assist — FastAPI entry point."""
+import asyncio
 import json
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -9,11 +11,19 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
-from . import chat, data
+from . import chat, data, knowledge
 
 load_dotenv()
 
-app = FastAPI(title="Baseline Assist", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if chat.has_llm_key():
+        await asyncio.to_thread(knowledge.build_index)
+    yield
+
+
+app = FastAPI(title="Baseline Assist", version="1.0.0", lifespan=lifespan)
 
 ALLOWED_ORIGINS = (os.getenv("ALLOWED_ORIGINS") or "http://localhost:5174,http://127.0.0.1:5174").split(",")
 

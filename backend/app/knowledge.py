@@ -1,4 +1,4 @@
-"""Knowledge base: Markdown docs → chunks → embeddings → Chroma (built lazily)."""
+"""Knowledge base: Markdown docs → chunks → embeddings → Chroma (built at startup)."""
 import os
 from pathlib import Path
 
@@ -51,19 +51,25 @@ def _embeddings(texts: list[str]) -> list[list[float]]:
     return [d.embedding for d in res.data]
 
 
-def _collection() -> chromadb.Collection:
+def build_index() -> None:
+    """Build the knowledge index once (idempotent — safe to call on every startup)."""
     client = chromadb.PersistentClient(path=str(CHROMA_DIR))
     col = client.get_or_create_collection(COLLECTION)
-    if col.count() == 0:
-        chunks = _load_chunks()
-        col.add(
-            ids=[f"{stem}-{i}" for i, (_, _, stem) in enumerate(chunks)],
-            documents=[c for c, _, _ in chunks],
-            metadatas=[{"title": title, "source": stem} for _, title, stem in chunks],
-            embeddings=_embeddings([c for c, _, _ in chunks]),
-        )
-        print(f"built knowledge index ({len(chunks)} chunks) at {CHROMA_DIR}")
-    return col
+    if col.count() > 0:
+        return
+    chunks = _load_chunks()
+    col.add(
+        ids=[f"{stem}-{i}" for i, (_, _, stem) in enumerate(chunks)],
+        documents=[c for c, _, _ in chunks],
+        metadatas=[{"title": title, "source": stem} for _, title, stem in chunks],
+        embeddings=_embeddings([c for c, _, _ in chunks]),
+    )
+    print(f"built knowledge index ({len(chunks)} chunks) at {CHROMA_DIR}")
+
+
+def _collection() -> chromadb.Collection:
+    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+    return client.get_or_create_collection(COLLECTION)
 
 
 def search_knowledge(query: str, k: int = 4) -> list[dict]:
